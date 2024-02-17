@@ -2116,11 +2116,7 @@ func AccessList(ctx context.Context, b Backend, db *state.StateDB, header *types
 		// and it's convered by the sender only anyway.
 		if nogas {
 			args.Gas = nil
-<<<<<<< HEAD
 			if err := args.setDefaults(ctx, b, true); err != nil {
-=======
-			if err := args.setDefaults(ctx, b); err != nil {
->>>>>>> 00285564a (feat(createMultipleAccessList): add createMultipleAccessList entrypoint)
 				return nil, 0, nil, err // shouldn't happen, just in case
 			}
 		}
@@ -2134,11 +2130,7 @@ func AccessList(ctx context.Context, b Backend, db *state.StateDB, header *types
 		// Apply the transaction with the access list tracer
 		tracer := logger.NewAccessListTracer(accessList, args.from(), to, precompiles)
 		config := vm.Config{Tracer: tracer, NoBaseFee: true}
-<<<<<<< HEAD
 		vmenv := b.GetEVM(ctx, msg, db, header, &config, nil)
-=======
-		vmenv, _ := b.GetEVM(ctx, msg, db, header, &config, nil)
->>>>>>> 00285564a (feat(createMultipleAccessList): add createMultipleAccessList entrypoint)
 		res, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.GasLimit))
 		if err != nil {
 			return nil, 0, nil, fmt.Errorf("failed to apply transaction: %v err: %v", args.toTransaction().Hash(), err)
