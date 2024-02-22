@@ -1341,8 +1341,6 @@ func (s *BlockChainAPI) CallBundle(ctx context.Context, args CallBundleArgs) (ma
 		ExcessBlobGas: parent.ExcessBlobGas,
 	}
 
-	fmt.Println(parent.BaseFee)
-
 	// Setup context so it may be cancelled the call has completed
 	// or, in case of unmetered gas, setup a context with a timeout.
 	var cancel context.CancelFunc
