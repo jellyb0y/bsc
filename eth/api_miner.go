@@ -20,6 +20,8 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/params"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
@@ -29,7 +31,7 @@ type MinerAPI struct {
 	e *Ethereum
 }
 
-// NewMinerAPI create a new MinerAPI instance.
+// NewMinerAPI creates a new MinerAPI instance.
 func NewMinerAPI(e *Ethereum) *MinerAPI {
 	return &MinerAPI{e}
 }
@@ -64,12 +66,16 @@ func (api *MinerAPI) SetGasPrice(gasPrice hexutil.Big) bool {
 	api.e.lock.Unlock()
 
 	api.e.txPool.SetGasTip((*big.Int)(&gasPrice))
+	api.e.Miner().SetGasTip((*big.Int)(&gasPrice))
 	return true
 }
 
 // SetGasLimit sets the gaslimit to target towards during mining.
 func (api *MinerAPI) SetGasLimit(gasLimit hexutil.Uint64) bool {
 	api.e.Miner().SetGasCeil(uint64(gasLimit))
+	if api.e.Miner().Mining() && uint64(gasLimit) > params.SystemTxsGas {
+		api.e.TxPool().SetMaxGas(uint64(gasLimit) - params.SystemTxsGas)
+	}
 	return true
 }
 
