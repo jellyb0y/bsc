@@ -1353,7 +1353,7 @@ func (s *BlockChainAPI) CallBundle(ctx context.Context, args CallBundleArgs) (ma
 	// this makes sure resources are cleaned up.
 	defer cancel()
 
-	vmconfig := vm.Config{}
+	vmconfig := vm.Config{NoBaseFee: true}
 
 	// Setup the gas pool (also for unmetered requests)
 	// and apply the message.
@@ -1368,17 +1368,16 @@ func (s *BlockChainAPI) CallBundle(ctx context.Context, args CallBundleArgs) (ma
 	for _, tx := range txs {
 		// state.Prepare(tx.Hash(), i)
 
+		receipt, result, err := core.ApplyTransaction(s.b.ChainConfig(), s.b.Chain(), &coinbase, gp, state, header, tx, &header.GasUsed, vmconfig)
+		if err != nil {
+			return nil, fmt.Errorf("err: %w; txhash %s", err, tx.Hash())
+		}
+
 		txHash := tx.Hash().String()
 		from, err := types.Sender(signer, tx)
 		if err != nil {
 			return nil, fmt.Errorf("err: %w; txhash %s", err, tx.Hash())
 		}
-
-		receipt, result, err := core.ApplyTransaction(s.b.ChainConfig(), s.b.Chain(), &from, gp, state, header, tx, &header.GasUsed, vmconfig)
-		if err != nil {
-			return nil, fmt.Errorf("err: %w; txhash %s", err, tx.Hash())
-		}
-
 		to := "0x"
 		if tx.To() != nil {
 			to = tx.To().String()
