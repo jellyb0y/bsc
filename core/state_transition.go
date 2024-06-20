@@ -464,6 +464,11 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	fee.Mul(fee, effectiveTipU256)
 	// consensus engine is parlia
 	if st.evm.ChainConfig().Parlia != nil {
+
+		if st.evm.Context.BlobBaseFee == nil {
+			return nil, errors.New("st.evm.Context.BlobBaseFee is nil")
+	}
+
 		st.state.AddBalance(consensus.SystemAddress, fee)
 		// add extra blob fee reward
 		if rules.IsCancun {
