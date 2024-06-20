@@ -1339,6 +1339,7 @@ func (s *BlockChainAPI) CallBundle(ctx context.Context, args CallBundleArgs) (ma
 		Difficulty: difficulty,
 		Coinbase:   coinbase,
 		BaseFee: parent.BaseFee,
+		ExcessBlobGas: parent.ExcessBlobGas,
 	}
 
 	// Setup context so it may be cancelled the call has completed
