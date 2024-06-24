@@ -1495,11 +1495,9 @@ func DoSingleMulticall(ctx context.Context, b Backend, args TransactionArgs, sta
 		}
 	}
 	if len(result.Revert()) > 0 {
-		revertErr := newRevertError(result.Revert())
-		data, _ := json.Marshal(&revertErr)
-		var result map[string]interface{}
-		json.Unmarshal(data, &result)
-		return result
+		return map[string]interface{}{
+			"error": result.Revert(),
+		}
 	}
 	if result.Err != nil {
 		return map[string]interface{}{
