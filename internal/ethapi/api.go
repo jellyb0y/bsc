@@ -1418,6 +1418,12 @@ func (s *BlockChainAPI) CallBundle(ctx context.Context, args CallBundleArgs) (ma
 	return ret, nil
 }
 
+func (s *BlockChainAPI) GetValidator(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (common.Address, error) {
+	header, _ := s.b.HeaderByNumberOrHash(ctx, blockNrOrHash)
+	validator, _ := s.b.Engine().NextInTurnValidator(s.b.Chain(), header)
+	return validator, nil
+}
+
 // Call executes the given transaction on the state for the given block number.
 //
 // Additionally, the caller can specify a batch of contract for fields overriding.
