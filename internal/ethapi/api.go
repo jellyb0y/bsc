@@ -1431,7 +1431,9 @@ func (s *BlockChainAPI) NextTwoValidators(ctx context.Context, blockNrOrHash rpc
 		return common.Address{}, common.Address{}, err
 	}
 
-	return s.b.Engine().TwoNextInTurnValidators(s.b.Chain(), header)
+	firstValidator, secondValidator, err := s.b.Engine().TwoNextInTurnValidators(s.b.Chain(), header)
+
+	return firstValidator, secondValidator, err
 }
 
 // Call executes the given transaction on the state for the given block number.
