@@ -1425,7 +1425,7 @@ func (s *BlockChainAPI) CallBundle(ctx context.Context, args CallBundleArgs) (ma
 	return ret, nil
 }
 
-func (s *BlockChainAPI) nextTwoValidators(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (common.Address, common.Address, error) {
+func (s *BlockChainAPI) NextTwoValidators(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (common.Address, common.Address, error) {
 	header, err := s.b.HeaderByNumberOrHash(ctx, blockNrOrHash)
 	if err != nil {
 		return common.Address{}, common.Address{}, err
