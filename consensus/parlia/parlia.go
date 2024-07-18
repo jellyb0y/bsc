@@ -977,6 +977,18 @@ func (p *Parlia) NextInTurnValidator(chain consensus.ChainHeaderReader, header *
 	return snap.inturnValidator(), nil
 }
 
+// NextInTurnValidator return the next in-turn validator for header
+func (p *Parlia) TwoNextInTurnValidators(chain consensus.ChainHeaderReader, header *types.Header) (common.Address, common.Address, error) {
+	snap, err := p.snapshot(chain, header.Number.Uint64(), header.Hash(), nil)
+	if err != nil {
+		return common.Address{}, common.Address{}, err
+	}
+
+	firstValidator, secondValidator := snap.twoInturnValidators()
+
+	return firstValidator, secondValidator, nil
+}
+
 // Prepare implements consensus.Engine, preparing all the consensus fields of the
 // header for running the transactions on top.
 func (p *Parlia) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
