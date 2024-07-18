@@ -494,6 +494,11 @@ func (ethash *Ethash) NextInTurnValidator(chain consensus.ChainHeaderReader, hea
 	return common.Address{}, errors.New("not implemented")
 }
 
+// TwoNextInTurnValidators return the next in-turn validator for header
+func (beacon *Ethash) TwoNextInTurnValidators(chain consensus.ChainHeaderReader, header *types.Header) (common.Address, common.Address, error) {
+	return common.Address{}, common.Address{}, errors.New("not implemented")
+}
+
 // Prepare implements consensus.Engine, initializing the difficulty field of a
 // header to conform to the ethash protocol. The changes are done inline.
 func (ethash *Ethash) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {

@@ -411,6 +411,16 @@ func (s *Snapshot) inturnValidator() common.Address {
 	return validators[offset]
 }
 
+// inturnValidator returns the validator at a given block height.
+func (s *Snapshot) twoInturnValidators() (common.Address, common.Address) {
+	validators := s.validators()
+
+	firstOffset := (s.Number + 1) % uint64(len(validators))
+	secondOffset := (s.Number + 2) % uint64(len(validators))
+
+	return validators[firstOffset], validators[secondOffset]
+}
+
 func (s *Snapshot) enoughDistance(validator common.Address, header *types.Header) bool {
 	idx := s.indexOfVal(validator)
 	if idx < 0 {
