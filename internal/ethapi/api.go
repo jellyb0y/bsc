@@ -1424,7 +1424,7 @@ func (s *BlockChainAPI) GetValidator(ctx context.Context, blockNrOrHash rpc.Bloc
 	return validator, nil
 }
 
-func (s *BlockChainAPI) NextTwoValidators(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (common.Address, common.Address, error) {
+func (s *BlockChainAPI) GetValidators(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (common.Address, common.Address, error) {
 	header, err := s.b.HeaderByNumberOrHash(ctx, blockNrOrHash)
 	if err != nil {
 		return common.Address{}, common.Address{}, err
