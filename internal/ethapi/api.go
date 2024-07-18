@@ -1419,6 +1419,12 @@ func (s *BlockChainAPI) CallBundle(ctx context.Context, args CallBundleArgs) (ma
 	return ret, nil
 }
 
+func (s *BlockChainAPI) GetValidator(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (common.Address, error) {
+	header, _ := s.b.HeaderByNumberOrHash(ctx, blockNrOrHash)
+	validator, _ := s.b.Engine().NextInTurnValidator(s.b.Chain(), header)
+	return validator, nil
+}
+
 func (s *BlockChainAPI) NextTwoValidators(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (common.Address, common.Address, error) {
 	header, err := s.b.HeaderByNumberOrHash(ctx, blockNrOrHash)
 	if err != nil {
