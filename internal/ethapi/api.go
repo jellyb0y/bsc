@@ -1268,6 +1268,7 @@ type CallBundleArgs struct {
 	Difficulty             *big.Int              `json:"difficulty"`
 	SimulationLogs         bool                  `json:"simulationLogs"`
 	StateOverrides         *StateOverride        `json:"stateOverrides"`
+	CreateAccessList       bool                  `json:"createAccessList"`
 }
 
 // CallBundle will simulate a bundle of transactions at the top of a given block
@@ -1348,11 +1349,13 @@ func (s *BlockChainAPI) CallBundle(ctx context.Context, args CallBundleArgs) (ma
 	// this makes sure resources are cleaned up.
 	defer cancel()
 
-	vmconfig := vm.Config{NoBaseFee: true}
-
 	// Setup the gas pool (also for unmetered requests)
 	// and apply the message.
 	gp := new(core.GasPool).AddGas(math.MaxUint64)
+
+	isPostMerge := header.Difficulty.Cmp(common.Big0) == 0
+	// Retrieve the precompiles since they don't need to be added to the access list
+	precompiles := vm.ActivePrecompiles(s.b.ChainConfig().Rules(header.Number, isPostMerge, header.Time))
 
 	results := []map[string]interface{}{}
 
@@ -1360,10 +1363,32 @@ func (s *BlockChainAPI) CallBundle(ctx context.Context, args CallBundleArgs) (ma
 	signer := types.MakeSigner(s.b.ChainConfig(), blockNumber, timestamp)
 	var totalGasUsed uint64
 	gasFees := new(big.Int)
-	for _, tx := range txs {
-		// state.Prepare(tx.Hash(), i)
 
-		receipt, result, err := core.ApplyTransaction(s.b.ChainConfig(), s.b.Chain(), &coinbase, gp, state, header, tx, &header.GasUsed, vmconfig)
+	vmConfig := vm.Config{NoBaseFee: true}
+
+	for _, tx := range txs {
+		msg, err := core.TransactionToMessage(tx, types.MakeSigner(s.b.ChainConfig(), header.Number, header.Time), header.BaseFee)
+		if err != nil {
+			return nil, fmt.Errorf("err: %w; txhash %s", err, tx.Hash())
+		}
+
+		if args.CreateAccessList {
+			// Create an initial tracer
+			tracer := logger.NewAccessListTracer(nil, msg.From, *msg.To, precompiles)
+
+			tempState := state.Copy();
+			tempVmConfig := vm.Config{Tracer: tracer, NoBaseFee: true}
+			tempVmenv := s.b.GetEVM(ctx, msg, tempState, header, &tempVmConfig, nil)
+
+			_, err := core.ApplyMessage(tempVmenv, msg, new(core.GasPool).AddGas(msg.GasLimit))
+			if err != nil {
+				return nil, fmt.Errorf("err: %w; txhash %s", err, tx.Hash())
+			}
+
+			msg.AccessList = tracer.AccessList()
+		}
+
+		receipt, result, err := core.ApplyTransactionFromMessage(s.b.ChainConfig(), s.b.Chain(), &coinbase, gp, state, header, tx, msg, &header.GasUsed, vmConfig)
 		if err != nil {
 			return nil, fmt.Errorf("err: %w; txhash %s", err, tx.Hash())
 		}
@@ -1405,6 +1430,11 @@ func (s *BlockChainAPI) CallBundle(ctx context.Context, args CallBundleArgs) (ma
 		jsonResult["gasFees"] = gasFeesTx.String()
 		jsonResult["gasPrice"] = tx.GasPrice().String()
 		jsonResult["gasUsed"] = receipt.GasUsed
+
+		if args.CreateAccessList {
+			jsonResult["accessList"] = msg.AccessList
+		}
+
 		results = append(results, jsonResult)
 	}
 
