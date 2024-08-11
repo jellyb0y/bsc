@@ -338,6 +338,11 @@ func (beacon *Beacon) NextInTurnValidator(chain consensus.ChainHeaderReader, hea
 	return common.Address{}, errors.New("not implemented")
 }
 
+// TwoNextInTurnValidators return the next in-turn validator for header
+func (beacon *Beacon) TwoNextInTurnValidators(chain consensus.ChainHeaderReader, header *types.Header) (common.Address, common.Address, error) {
+	return common.Address{}, common.Address{}, errors.New("not implemented")
+}
+
 // Prepare implements consensus.Engine, initializing the difficulty field of a
 // header to conform to the beacon protocol. The changes are done inline.
 func (beacon *Beacon) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
