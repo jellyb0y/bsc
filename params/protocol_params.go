@@ -16,31 +16,38 @@
 
 package params
 
-import "math/big"
+import (
+	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
+)
 
 const (
-	GasLimitBoundDivisor uint64 = 256     // The bound divisor of the gas limit, used in update calculations.
-	MinGasLimit          uint64 = 5000    // Minimum the gas limit may ever be.
-	GenesisGasLimit      uint64 = 4712388 // Gas limit of the Genesis block.
+	GasLimitBoundDivisor uint64 = 256                // The bound divisor of the gas limit, used in update calculations.
+	MinGasLimit          uint64 = 5000               // Minimum the gas limit may ever be.
+	MaxGasLimit          uint64 = 0x7fffffffffffffff // Maximum the gas limit (2^63-1).
+	GenesisGasLimit      uint64 = 4712388            // Gas limit of the Genesis block.
+	PayBidTxGasLimit     uint64 = 25000              // Gas limit of the PayBidTx in the types.BidArgs.
 
-	MaximumExtraDataSize  uint64 = 32     // Maximum size extra data may be after Genesis.
-	ForkIDSize            uint64 = 4      // The length of fork id
-	ExpByteGas            uint64 = 10     // Times ceil(log256(exponent)) for the EXP instruction.
-	SloadGas              uint64 = 50     // Multiplied by the number of 32-byte words that are copied (round up) for any *COPY operation and added.
-	CallValueTransferGas  uint64 = 9000   // Paid for CALL when the value transfer is non-zero.
-	CallNewAccountGas     uint64 = 25000  // Paid for CALL when the destination address didn't exist prior.
-	TxGas                 uint64 = 21000  // Per transaction not creating a contract. NOTE: Not payable on data of calls between transactions.
-	SystemTxsGas          uint64 = 500000 // The gas reserved for system txs; only for parlia consensus
-	TxGasContractCreation uint64 = 53000  // Per transaction that creates a contract. NOTE: Not payable on data of calls between transactions.
-	TxDataZeroGas         uint64 = 4      // Per byte of data attached to a transaction that equals zero. NOTE: Not payable on data of calls between transactions.
-	QuadCoeffDiv          uint64 = 512    // Divisor for the quadratic particle of the memory cost equation.
-	LogDataGas            uint64 = 8      // Per byte in a LOG* operation's data.
-	CallStipend           uint64 = 2300   // Free gas given at beginning of call.
+	MaximumExtraDataSize  uint64 = 32       // Maximum size extra data may be after Genesis.
+	ForkIDSize            uint64 = 4        // The length of fork id
+	ExpByteGas            uint64 = 10       // Times ceil(log256(exponent)) for the EXP instruction.
+	SloadGas              uint64 = 50       // Multiplied by the number of 32-byte words that are copied (round up) for any *COPY operation and added.
+	CallValueTransferGas  uint64 = 9000     // Paid for CALL when the value transfer is non-zero.
+	CallNewAccountGas     uint64 = 25000    // Paid for CALL when the destination address didn't exist prior.
+	TxGas                 uint64 = 21000    // Per transaction not creating a contract. NOTE: Not payable on data of calls between transactions.
+	SystemTxsGas          uint64 = 20000000 // The gas reserved for system txs; only for parlia consensus
+	TxGasContractCreation uint64 = 53000    // Per transaction that creates a contract. NOTE: Not payable on data of calls between transactions.
+	TxDataZeroGas         uint64 = 4        // Per byte of data attached to a transaction that equals zero. NOTE: Not payable on data of calls between transactions.
+	QuadCoeffDiv          uint64 = 512      // Divisor for the quadratic particle of the memory cost equation.
+	LogDataGas            uint64 = 8        // Per byte in a LOG* operation's data.
+	CallStipend           uint64 = 2300     // Free gas given at beginning of call.
 
-	Sha3Gas     uint64 = 30 // Once per SHA3 operation.
-	Sha3WordGas uint64 = 6  // Once per word of the SHA3 operation's data.
+	Keccak256Gas     uint64 = 30 // Once per KECCAK256 operation.
+	Keccak256WordGas uint64 = 6  // Once per word of the KECCAK256 operation's data.
+	InitCodeWordGas  uint64 = 2  // Once per word of the init code when creating a contract.
 
-	SstoreSetGas    uint64 = 20000 // Once per SLOAD operation.
+	SstoreSetGas    uint64 = 20000 // Once per SSTORE operation.
 	SstoreResetGas  uint64 = 5000  // Once per SSTORE operation if the zeroness changes from zero.
 	SstoreClearGas  uint64 = 5000  // Once per SSTORE operation if the zeroness doesn't change.
 	SstoreRefundGas uint64 = 15000 // Once per SSTORE operation if the zeroness changes to zero.
@@ -58,6 +65,16 @@ const (
 	SstoreSetGasEIP2200               uint64 = 20000 // Once per SSTORE operation from clean zero to non-zero
 	SstoreResetGasEIP2200             uint64 = 5000  // Once per SSTORE operation from clean non-zero to something else
 	SstoreClearsScheduleRefundEIP2200 uint64 = 15000 // Once per SSTORE operation for clearing an originally existing storage slot
+
+	ColdAccountAccessCostEIP2929 = uint64(2600) // COLD_ACCOUNT_ACCESS_COST
+	ColdSloadCostEIP2929         = uint64(2100) // COLD_SLOAD_COST
+	WarmStorageReadCostEIP2929   = uint64(100)  // WARM_STORAGE_READ_COST
+
+	// In EIP-2200: SstoreResetGas was 5000.
+	// In EIP-2929: SstoreResetGas was changed to '5000 - COLD_SLOAD_COST'.
+	// In EIP-3529: SSTORE_CLEARS_SCHEDULE is defined as SSTORE_RESET_GAS + ACCESS_LIST_STORAGE_KEY_COST
+	// Which becomes: 5000 - 2100 + 1900 = 4800
+	SstoreClearsScheduleRefundEIP3529 uint64 = SstoreResetGasEIP2200 - ColdSloadCostEIP2929 + TxAccessListStorageKeyGas
 
 	JumpdestGas   uint64 = 1     // Once per JUMPDEST operation.
 	EpochDuration uint64 = 30000 // Duration between proof-of-work epochs.
@@ -110,21 +127,30 @@ const (
 	// Introduced in Tangerine Whistle (Eip 150)
 	CreateBySelfdestructGas uint64 = 25000
 
-	MaxCodeSize = 24576 // Maximum bytecode to permit for a contract
+	DefaultBaseFeeChangeDenominator = 8          // Bounds the amount the base fee can change between blocks.
+	DefaultElasticityMultiplier     = 2          // Bounds the maximum gas limit an EIP-1559 block may have.
+	InitialBaseFee                  = 1000000000 // Initial base fee for EIP-1559 blocks.
+	InitialBaseFeeForBSC            = 0          // Initial base fee for EIP-1559 blocks on bsc Mainnet
+
+	MaxCodeSize     = 24576           // Maximum bytecode to permit for a contract
+	MaxInitCodeSize = 2 * MaxCodeSize // Maximum initcode to permit in a creation transaction and create instructions
 
 	// Precompiled contract gas prices
 
-	//TODO need further discussion
-	TendermintHeaderValidateGas uint64 = 3000 // Gas for validate tendermiint consensus state
-	IAVLMerkleProofValidateGas  uint64 = 3000 // Gas for validate merkle proof
+	TendermintHeaderValidateGas   uint64 = 3000 // Gas for validate tendermiint consensus state
+	IAVLMerkleProofValidateGas    uint64 = 3000 // Gas for validate merkle proof
+	CometBFTLightBlockValidateGas uint64 = 3000 // Gas for validate cometBFT light block
 
-	EcrecoverGas        uint64 = 3000 // Elliptic curve sender recovery gas price
-	Sha256BaseGas       uint64 = 60   // Base price for a SHA256 operation
-	Sha256PerWordGas    uint64 = 12   // Per-word price for a SHA256 operation
-	Ripemd160BaseGas    uint64 = 600  // Base price for a RIPEMD160 operation
-	Ripemd160PerWordGas uint64 = 120  // Per-word price for a RIPEMD160 operation
-	IdentityBaseGas     uint64 = 15   // Base price for a data copy operation
-	IdentityPerWordGas  uint64 = 3    // Per-work price for a data copy operation
+	EcrecoverGas                uint64 = 3000  // Elliptic curve sender recovery gas price
+	Sha256BaseGas               uint64 = 60    // Base price for a SHA256 operation
+	Sha256PerWordGas            uint64 = 12    // Per-word price for a SHA256 operation
+	Ripemd160BaseGas            uint64 = 600   // Base price for a RIPEMD160 operation
+	Ripemd160PerWordGas         uint64 = 120   // Per-word price for a RIPEMD160 operation
+	IdentityBaseGas             uint64 = 15    // Base price for a data copy operation
+	IdentityPerWordGas          uint64 = 3     // Per-work price for a data copy operation
+	BlsSignatureVerifyBaseGas   uint64 = 1000  // base price for a BLS signature verify operation
+	BlsSignatureVerifyPerKeyGas uint64 = 3500  // Per-key price for a BLS signature verify operation
+	DoubleSignEvidenceVerifyGas uint64 = 10000 // Gas for verify double sign evidence
 
 	Bn256AddGasByzantium             uint64 = 500    // Byzantium gas needed for an elliptic curve addition
 	Bn256AddGasIstanbul              uint64 = 150    // Gas needed for an elliptic curve addition
@@ -143,6 +169,29 @@ const (
 	Bls12381PairingPerPairGas uint64 = 23000  // Per-point pair gas price for BLS12-381 elliptic curve pairing check
 	Bls12381MapG1Gas          uint64 = 5500   // Gas price for BLS12-381 mapping field element to G1 operation
 	Bls12381MapG2Gas          uint64 = 110000 // Gas price for BLS12-381 mapping field element to G2 operation
+
+	P256VerifyGas uint64 = 3450 // secp256r1 elliptic curve signature verifier gas price
+
+	// The Refund Quotient is the cap on how much of the used gas can be refunded. Before EIP-3529,
+	// up to half the consumed gas could be refunded. Redefined as 1/5th in EIP-3529
+	RefundQuotient        uint64 = 2
+	RefundQuotientEIP3529 uint64 = 5
+
+	BlobTxBytesPerFieldElement         = 32      // Size in bytes of a field element
+	BlobTxFieldElementsPerBlob         = 4096    // Number of field elements stored in a single data blob
+	BlobTxBlobGasPerBlob               = 1 << 17 // Gas consumption of a single data blob (== blob byte size)
+	BlobTxMinBlobGasprice              = 1       // Minimum gas price for data blobs
+	BlobTxBlobGaspriceUpdateFraction   = 3338477 // Controls the maximum rate of change for blob gas price
+	BlobTxPointEvaluationPrecompileGas = 50000   // Gas price for the point evaluation precompile.
+
+	BlobTxTargetBlobGasPerBlock = 3 * BlobTxBlobGasPerBlob // Target consumable blob gas for data blobs per block (for 1559-like pricing)
+	MaxBlobGasPerBlock          = 6 * BlobTxBlobGasPerBlob // Maximum consumable blob gas for data blobs per block
+)
+
+var (
+	MinBlocksForBlobRequests           uint64 = 524288              // it keeps blob data available for ~18.2 days in local, ref: https://github.com/bnb-chain/BEPs/blob/master/BEPs/BEP-336.md#51-parameters.
+	DefaultExtraReserveForBlobRequests uint64 = 1 * (24 * 3600) / 3 // it adds more time for expired blobs for some request cases, like expiry blob when remote peer is syncing, default 1 day.
+	BreatheBlockInterval               uint64 = 86400               // Controls the interval for updateValidatorSetV2
 )
 
 // Gas discount table for BLS12-381 G1 and G2 multi exponentiation operations
@@ -153,4 +202,9 @@ var (
 	GenesisDifficulty      = big.NewInt(131072) // Difficulty of the Genesis block.
 	MinimumDifficulty      = big.NewInt(131072) // The minimum that the difficulty may ever be.
 	DurationLimit          = big.NewInt(13)     // The decision boundary on the blocktime duration used to determine whether difficulty should go up or not.
+
+	// BeaconRootsAddress is the address where historical beacon roots are stored as per EIP-4788
+	BeaconRootsAddress = common.HexToAddress("0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02")
+	// SystemAddress is where the system-transaction is sent from as per EIP-4788
+	SystemAddress = common.HexToAddress("0xfffffffffffffffffffffffffffffffffffffffe")
 )
